@@ -19,5 +19,6 @@ class FileDatabase(DictDatabase):
 
     def delete_value(self, key):
         self.dict = pickle.load(self.db)
-        super().delete_value(key)
+        val = super().delete_value(key)
         pickle.dump(self.db, self.dict)
+        return val
