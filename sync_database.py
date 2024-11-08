@@ -1,6 +1,8 @@
-
-
+import threading
 from threading import Thread, Lock, Semaphore
+from multiprocessing import Process, Lock, Semaphore
+
+
 import time
 import logging
 from file_database import FileDatabase
@@ -13,12 +15,12 @@ logging.basicConfig(filename='DataBase.log', level=logging.DEBUG)
 class SyncDatabase(FileDatabase):
     def __init__(self):
         super().__init__()
+
         self.write_lock = Lock()
         self.sem = Semaphore(MAX_READERS)
 
         self.reader_count = 0
         self.reader_count_lock = Lock()
-
 
     def set_value(self, val, key):
         with self.write_lock:
