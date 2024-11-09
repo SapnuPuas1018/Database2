@@ -55,18 +55,30 @@ class SyncDatabase(FileDatabase):
 
     def get_read_access(self):
         self.sem.acquire()
-        with self.reader_count_lock:
-            self.reader_count += 1
-            if self.reader_count == 1:  # first reader locks writing
-                self.write_lock.acquire()
+        if self.mode == 'threading':
+            with self.reader_count_lock:
+                self.reader_count += 1
+                if self.reader_count == 1:
+                    self.write_lock.acquire()  # First reader locks writing
+        elif self.mode == 'multiprocessing':
+            with self.reader_count_lock:
+                self.reader_count.value += 1
+                if self.reader_count.value == 1:
+                    self.write_lock.acquire()
 
 
 
     def end_read(self):
-        with self.reader_count_lock:
-            self.reader_count -= 1
-            if self.reader_count == 0:
-                self.write_lock.release()  # Last reader unlocks writing
+        if self.mode == 'threading':
+            with self.reader_count_lock:
+                self.reader_count -= 1
+                if self.reader_count == 0:
+                    self.write_lock.release()  # Last reader unlocks writing
+        elif self.mode == 'multiprocessing':
+            with self.reader_count_lock:
+                self.reader_count.value -= 1
+                if self.reader_count.value == 0:
+                    self.write_lock.release()
         self.sem.release()
 
 
