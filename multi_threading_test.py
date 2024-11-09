@@ -58,8 +58,8 @@ class ThreadingTest():
 
 
     def test_6(self):
-        # Multiple Reads, then multiple Writes Test
-        for i in range(1, 3):
+        # Multiple Reads Test, while writing request
+        for i in range(1, 7):
             thread = threading.Thread(target=self.data_base.get_value, args=('test 6',))
             thread.start()
             self.threads_list.append(thread)
@@ -68,7 +68,27 @@ class ThreadingTest():
         thread.start()
         self.threads_list.append(thread)
 
-        thread = threading.Thread(target=self.data_base.set_value, args=('complete 2', 'test 6'))
+        for i in range(1, 7):
+            thread = threading.Thread(target=self.data_base.get_value, args=('test 6',))
+            thread.start()
+            self.threads_list.append(thread)
+
+        for thread in self.threads_list:
+            thread.join()
+
+
+    def test_7(self):
+        # Multiple Reads, then multiple Writes Test
+        for i in range(1, 3):
+            thread = threading.Thread(target=self.data_base.get_value, args=('test 7',))
+            thread.start()
+            self.threads_list.append(thread)
+
+        thread = threading.Thread(target=self.data_base.set_value, args=('complete 1', 'test 7'))
+        thread.start()
+        self.threads_list.append(thread)
+
+        thread = threading.Thread(target=self.data_base.set_value, args=('complete 2', 'test 7'))
         thread.start()
         self.threads_list.append(thread)
 
@@ -90,7 +110,8 @@ class ThreadingTest():
         self.test_5()
         print('-----------------------------------start test 6-----------------------------------')
         self.test_6()
-
+        print('-----------------------------------start test 7-----------------------------------')
+        self.test_7()
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import multiprocessing
 import threading
 from threading import Thread, Lock, Semaphore
-from multiprocessing import Process, Lock, Semaphore
+from multiprocessing import Process, Lock, Semaphore, Value
 
 
 import time
@@ -19,18 +19,23 @@ class SyncDatabase(FileDatabase):
         self.mode = mode
         if self.mode == 'threading':
             self.write_lock = threading.Lock()
+            self.write_semaphores = threading.Lock()
             self.sem = threading.Semaphore(MAX_READERS)
 
             self.reader_count_lock = threading.Lock()
+            self.reader_count = 0
         elif self.mode == 'multiprocessing':
             self.write_lock = multiprocessing.Lock()
             self.sem = multiprocessing.Semaphore(MAX_READERS)
 
             self.reader_count_lock = multiprocessing.Lock()
+            self.reader_count = Value('i', 0)  # Shared integer for reader count
         else:
             print('|:-(')
+            raise ValueError("Mode must be either 'threading' or 'multiprocessing'.")
 
-        self.reader_count = 0
+
+
 
 
     def set_value(self, val, key):
