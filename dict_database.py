@@ -4,10 +4,23 @@ logging.basicConfig(filename='dict_database.log', level=logging.DEBUG)
 
 class DictDatabase:
     def __init__(self):
+        """
+        Initializes an instance of the DictDatabase class with an empty dictionary.
+        """
         self.dict = {}
         logging.info("Initialized DictDatabase with an empty dictionary.")
 
     def set_value(self, val, key):
+        """
+        Sets a value in the dictionary for a specified key. If the key exists, the value is updated.
+
+        :param val: The value to store in the dictionary.
+        :type val: any
+        :param key: The key to associate with the value.
+        :type key: str
+        :return: True if the operation is successful, False otherwise.
+        :rtype: bool
+        """
         try:
             self.dict[key] = val
             logging.info(f"set_value: Set {key} = {val}")
@@ -17,6 +30,14 @@ class DictDatabase:
             return False
 
     def get_value(self, key):
+        """
+        Retrieves the value associated with the specified key in the dictionary.
+
+        :param key: The key for which to retrieve the value.
+        :type key: str
+        :return: The value associated with the key if it exists, otherwise None.
+        :rtype: any or None
+        """
         logging.info(f"get_value: Attempting to retrieve {key}")
         if key in self.dict.keys():
             logging.info(f"get_value: Found {key} = {self.dict[key]}")
@@ -25,6 +46,14 @@ class DictDatabase:
         return None
 
     def delete_value(self, key):
+        """
+        Deletes the key-value pair associated with the specified key from the dictionary.
+
+        :param key: The key of the key-value pair to delete.
+        :type key: str
+        :return: The value associated with the deleted key if it exists, otherwise None.
+        :rtype: any or None
+        """
         logging.info(f"delete_value: Attempting to delete {key}")
         if key in self.dict.keys():
             value = self.dict.pop(key)
