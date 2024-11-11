@@ -2,6 +2,7 @@ import logging
 
 logging.basicConfig(filename='dict_database.log', level=logging.DEBUG)
 
+
 class DictDatabase:
     def __init__(self):
         """
@@ -9,6 +10,7 @@ class DictDatabase:
         """
         self.dict = {}
         logging.info("Initialized DictDatabase with an empty dictionary.")
+        print("Initialized DictDatabase with an empty dictionary.")  # Added print
 
     def set_value(self, val, key):
         """
@@ -24,9 +26,11 @@ class DictDatabase:
         try:
             self.dict[key] = val
             logging.info(f"set_value: Set {key} = {val}")
+            print(f"set_value: Set {key} = {val}")  # Added print
             return True
         except KeyError:
             logging.error(f"Failed to set {key} = {val}")
+            print(f"Failed to set {key} = {val}")  # Added print
             return False
 
     def get_value(self, key):
@@ -39,10 +43,13 @@ class DictDatabase:
         :rtype: any or None
         """
         logging.info(f"get_value: Attempting to retrieve {key}")
+        print(f"get_value: Attempting to retrieve {key}")  # Added print
         if key in self.dict.keys():
             logging.info(f"get_value: Found {key} = {self.dict[key]}")
+            print(f"get_value: Found {key} = {self.dict[key]}")  # Added print
             return self.dict[key]
         logging.warning(f"get_value: {key} not found.")
+        print(f"get_value: {key} not found.")  # Added print
         return None
 
     def delete_value(self, key):
@@ -55,11 +62,14 @@ class DictDatabase:
         :rtype: any or None
         """
         logging.info(f"delete_value: Attempting to delete {key}")
+        print(f"delete_value: Attempting to delete {key}")  # Added print
         if key in self.dict.keys():
             value = self.dict.pop(key)
             logging.info(f"delete_value: Deleted {key} = {value}")
+            print(f"delete_value: Deleted {key} = {value}")  # Added print
             return value
         logging.warning(f"delete_value: {key} not found for deletion.")
+        print(f"delete_value: {key} not found for deletion.")  # Added print
         return None
 
 
@@ -87,3 +97,4 @@ if __name__ == '__main__':
     assert db.delete_value('b') == None, "Deleting non-existent key 'b' should return None"
 
     logging.info("All assertions passed.")
+    print("All assertions passed.")  # Added print

@@ -4,6 +4,7 @@ from multiprocessing import Value
 import time
 import logging
 from file_database import FileDatabase
+import win32event
 
 MAX_READERS = 10
 logging.basicConfig(filename='sync_database.log', level=logging.DEBUG)
@@ -22,21 +23,23 @@ class SyncDatabase(FileDatabase):
         super().__init__()
         self.mode = mode
         logging.info(f"Initializing SyncDatabase in {mode} mode.")
+        print(f"Initializing SyncDatabase in {mode} mode.")
 
         if self.mode == 'threading':
-            self.write_lock = threading.Lock()
-            self.sem_lock = threading.Lock()
+            self.write_lock = win32event.CreateMutex(None, False, 'WriteLock')
+            self.sem_lock = win32event.CreateMutex(None, False, 'SemLock')
             self.sem = threading.Semaphore(MAX_READERS)
-            self.reader_count_lock = threading.Lock()
+            self.reader_count_lock = win32event.CreateMutex(None, False, 'ReaderCountLock')
             self.reader_count = 0
         elif self.mode == 'multiprocessing':
-            self.write_lock = multiprocessing.Lock()
+            self.write_lock = win32event.CreateMutex(None, False, 'WriteLock')
+            self.sem_lock = win32event.CreateMutex(None, False, 'SemLock')
             self.sem = multiprocessing.Semaphore(MAX_READERS)
-            self.reader_count_lock = multiprocessing.Lock()
-            self.sem_lock = multiprocessing.Lock()
+            self.reader_count_lock = win32event.CreateMutex(None, False, 'ReaderCountLock')
             self.reader_count = Value('i', 0)  # Shared integer for reader count
         else:
             logging.error("Invalid mode specified.")
+            print("Invalid mode specified.")
             raise ValueError("Mode must be either 'threading' or 'multiprocessing'.")
 
     def catch_all_semaphores(self):
@@ -46,10 +49,10 @@ class SyncDatabase(FileDatabase):
         :return: None
         :rtype: None
         """
-        self.sem_lock.acquire()
+        win32event.WaitForSingleObject(self.sem_lock, -1)
+        print("Acquiring semaphores...")
         for _ in range(10):
             self.sem.acquire()
-
 
     def release_all_semaphores(self):
         """
@@ -60,29 +63,32 @@ class SyncDatabase(FileDatabase):
         """
         for _ in range(10):
             self.sem.release()
-        self.sem_lock.release()
-
+        win32event.ReleaseMutex(self.sem_lock)
+        print("Released all semaphores.")
 
     def set_value(self, val, key):
         """
-        Releases all reader semaphores, allowing read access to the database.
+        Sets a value in the database for a specified key, ensuring exclusive write access.
 
-        :return: None
-        :rtype: None
+        :param val: The value to store in the database.
+        :param key: The key to associate with the value.
+        :return: True if the operation is successful, False otherwise.
         """
         self.catch_all_semaphores()
         logging.info(f"Attempting to set {key} to {val}.")
-        with self.write_lock:
-            time.sleep(5)  # Simulate writing time
-            response = super().set_value(val, key)
-            logging.debug(f'Write - {key}: {val}')
+        print(f"Attempting to set {key} to {val}.")
+        win32event.WaitForSingleObject(self.write_lock, -1)
+        # time.sleep(5)  # Simulate writing time
+        response = super().set_value(val, key)
+        logging.debug(f'Write - {key}: {val}')
+        print(f'Write - {key}: {val}')
+        win32event.ReleaseMutex(self.write_lock)
         self.release_all_semaphores()
         return response
 
     def get_value(self, key):
         """
         Retrieves the value associated with the specified key in the dictionary, ensuring safe concurrent read access.
-        Synchronizes access based on the mode and loads the dictionary from the file.
 
         :param key: The key for which to retrieve the value.
         :type key: str
@@ -90,10 +96,12 @@ class SyncDatabase(FileDatabase):
         :rtype: any or None
         """
         logging.info(f"Attempting to get value for {key}.")
+        print(f"Attempting to get value for {key}.")
         self.get_read_access()
-        time.sleep(5)  # Simulate reading time
+        # time.sleep(5)  # Simulate reading time
         val = super().get_value(key)
         logging.debug(f'Read - {key}: {val}')
+        print(f'Read - {key}: {val}')
         self.end_read()
         return val
 
@@ -106,19 +114,25 @@ class SyncDatabase(FileDatabase):
         :rtype: None
         """
         logging.info("Requesting read access.")
+        print("Requesting read access.")
         self.sem.acquire()
         if self.mode == 'threading':
-            with self.reader_count_lock:
-                self.reader_count += 1
-                if self.reader_count == 1:
-                    logging.info("First reader acquiring write lock.")
-                    self.write_lock.acquire()  # First reader locks writing
+            win32event.WaitForSingleObject(self.reader_count_lock, -1)
+            self.reader_count += 1
+            if self.reader_count == 1:
+                logging.info("First reader acquiring write lock.")
+                print("First reader acquiring write lock.")
+                win32event.WaitForSingleObject(self.write_lock, -1)  # First reader locks writing
+            win32event.ReleaseMutex(self.reader_count_lock)
         elif self.mode == 'multiprocessing':
-            with self.reader_count_lock:
-                self.reader_count.value += 1
-                if self.reader_count.value == 1:
-                    logging.info("First reader acquiring write lock (multiprocessing).")
-                    self.write_lock.acquire()
+            win32event.WaitForSingleObject(self.reader_count_lock, -1)
+            self.reader_count.value += 1
+            if self.reader_count.value == 1:
+                logging.info("First reader acquiring write lock (multiprocessing).")
+                print("First reader acquiring write lock (multiprocessing).")
+                win32event.WaitForSingleObject(self.write_lock, -1)
+            win32event.WaitForSingleObject(self.write_lock, -1)  # First reader locks writing
+
 
     def end_read(self):
         """
@@ -129,18 +143,15 @@ class SyncDatabase(FileDatabase):
         :rtype: None
         """
         logging.info("Ending read access.")
+        print("Ending read access.")
         if self.mode == 'threading':
-            with self.reader_count_lock:
-                self.reader_count -= 1
-                if self.reader_count == 0:
-                    logging.info("Last reader releasing write lock.")
-                    self.write_lock.release()  # Last reader unlocks writing
-        elif self.mode == 'multiprocessing':
-            with self.reader_count_lock:
-                self.reader_count.value -= 1
-                if self.reader_count.value == 0:
-                    logging.info("Last reader releasing write lock (multiprocessing).")
-                    self.write_lock.release()
+            win32event.WaitForSingleObject(self.reader_count_lock, -1)
+            self.reader_count -= 1
+            if self.reader_count == 0:
+                logging.info("Last reader releasing write lock.")
+                print("Last reader releasing write lock.")
+                win32event.ReleaseMutex(self.write_lock)  # Last reader unlocks writing
+            win32event.ReleaseMutex(self.reader_count_lock)
         self.sem.release()
 
     def delete_value(self, key):
@@ -155,10 +166,13 @@ class SyncDatabase(FileDatabase):
         """
         self.catch_all_semaphores()
         logging.info(f"Attempting to delete {key}.")
-        with self.write_lock:
-            time.sleep(5)  # Simulate writing time
-            val = super().delete_value(key)
-            logging.debug(f'Deleted - {key}: {val}')
+        print(f"Attempting to delete {key}.")
+        win32event.WaitForSingleObject(self.write_lock, -1)
+        # time.sleep(5)  # Simulate writing time
+        val = super().delete_value(key)
+        logging.debug(f'Deleted - {key}: {val}')
+        print(f'Deleted - {key}: {val}')
+        win32event.ReleaseMutex(self.write_lock)
         self.release_all_semaphores()
         return val
 
