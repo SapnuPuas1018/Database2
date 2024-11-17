@@ -1,7 +1,12 @@
+import json
 import pickle
 import os
 import logging
+
+import win32file
+
 from dict_database import DictDatabase
+import win32event
 
 FILE_PATH = 'database.pkl'
 
@@ -12,7 +17,7 @@ class FileDatabase(DictDatabase):
         Loads an existing dictionary from a file or initializes a new one if the file does not exist.
         """
         super().__init__()
-        self.load()  # Load data when initializing, if file exists.
+        self.create_file()  # Load data when initializing, if file exists.
         logging.info("FileDatabase initialized.")
         print("FileDatabase initialized.")
 
@@ -20,16 +25,14 @@ class FileDatabase(DictDatabase):
         """
         Creates a new file with an empty dictionary if the file doesn't exist.
         """
-        logging.info("Initializing FileDatabase.")
-        print("Initializing FileDatabase.")
-        if not os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'wb') as database_file:
-                pickle.dump(self.dict, database_file)
-            logging.info("FileDatabase created a new database file with an empty dictionary.")
-            print("FileDatabase created a new database file with an empty dictionary.")
-        else:
-            logging.info("Database file already exists, no need to create it.")
-            print("Database file already exists, no need to create it.")
+        self.handle = win32file.CreateFile(
+            FILE_PATH,
+            win32file.GENERIC_WRITE | win32file.GENERIC_READ,
+            win32file.FILE_SHARE_READ | win32file.FILE_SHARE_WRITE,
+            None,
+            win32file.OPEN_ALWAYS,  # Overwrite the file if it exists
+            0,
+            None)
 
     def save(self):
         """
@@ -38,28 +41,48 @@ class FileDatabase(DictDatabase):
         :return: None
         :rtype: None
         """
-        with open(FILE_PATH, 'wb') as database_file:
-            pickle.dump(self.dict, database_file)
-        logging.info("Database saved to file.")
-        print("Database saved to file.")
+        # with open(FILE_PATH, 'wb') as database_file:
+        #     pickle.dump(self.dict, database_file)
+        # logging.info("Database saved to file.")
+        # print("Database saved to file.")
+
+        data = json.dumps(self.dict).encode('utf-8')  # Convert dict to bytes
+        win32file.SetFilePointer(self.handle, 0, win32file.FILE_BEGIN)  # Move to the beginning of the file
+        win32file.SetEndOfFile(self.handle)  # Ensure the file is truncated before writing new data
+        win32file.WriteFile(self.handle, data)
+        print(f"Data saved to file: {data}")
+
+    # def load(self):
+    #     """
+    #     Loads the dictionary state from a file, if it exists. If the file does not exist,
+    #     initializes with an empty dictionary.
+    #
+    #     :return: None
+    #     :rtype: None
+    #     """
+    #     if os.path.exists(FILE_PATH):
+    #         with open(FILE_PATH, 'rb') as database_file:
+    #             self.dict = pickle.load(database_file)
+    #         logging.info("Database loaded from file.")
+    #         print("Database loaded from file.")
+    #     else:
+    #         logging.warning("Database file not found. Initialized with an empty dictionary.")
+    #         print("Database file not found. Initialized with an empty dictionary.")
+    #         self.dict = {}
 
     def load(self):
-        """
-        Loads the dictionary state from a file, if it exists. If the file does not exist,
-        initializes with an empty dictionary.
-
-        :return: None
-        :rtype: None
-        """
         if os.path.exists(FILE_PATH):
-            with open(FILE_PATH, 'rb') as database_file:
-                self.dict = pickle.load(database_file)
-            logging.info("Database loaded from file.")
-            print("Database loaded from file.")
-        else:
-            logging.warning("Database file not found. Initialized with an empty dictionary.")
-            print("Database file not found. Initialized with an empty dictionary.")
-            self.dict = {}
+            win32file.SetFilePointer(self.handle, 0, win32file.FILE_BEGIN)  # Start from the beginning of the file
+            result, data = win32file.ReadFile(self.handle, 1024)  # Read up to 1024 bytes
+            # print(f"Data read from file: {data}")
+            if result != 0 or not data:  # If no data was read or data is empty
+                self.dict = {}  # Initialize the dictionary as empty
+            else:
+                try:
+                    self.dict = json.loads(data.decode('utf-8'))  # Convert bytes back to dict
+                except json.JSONDecodeError:
+                    # print("Error: Invalid JSON in file.")
+                    self.dict = {}  # Initialize as empty if JSON is invalid
 
     def set_value(self, val, key):
         """
