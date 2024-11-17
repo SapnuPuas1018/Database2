@@ -1,7 +1,6 @@
 import threading
 from sync_database import SyncDatabase
 
-
 class ThreadingTest:
     def __init__(self):
         """
@@ -108,9 +107,11 @@ class ThreadingTest:
             thread.start()
             self.threads_list.append(thread)
 
-        thread = threading.Thread(target=self.data_base.set_value, args=('complete 1', 'test 6'))
+
+        thread = threading.Thread(target=self.data_base.set_value, args=('complete', 'test 6'))
         thread.start()
         self.threads_list.append(thread)
+
 
         for i in range(1, 7):
             thread = threading.Thread(target=self.data_base.get_value, args=('test 6',))

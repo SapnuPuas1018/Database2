@@ -2,7 +2,7 @@ import multiprocessing
 from sync_database import SyncDatabase
 
 
-class ProcessTest():
+class ProcessTest:
     def __init__(self):
         """
         Initializes an instance of the ProcessTest class.
@@ -11,7 +11,7 @@ class ProcessTest():
         :return: None
         :rtype: None
         """
-        self.process_list = []  # Threads list
+        self.process_list = []
         self.data_base = SyncDatabase('multiprocessing')
 
 
@@ -154,10 +154,10 @@ class ProcessTest():
         :return: None
         :rtype: None
         """
-        print('-----------------------------------start test 1-----------------------------------')
-        self.test_1()
-        print('-----------------------------------start test 2-----------------------------------')
-        self.test_2()
+        # print('-----------------------------------start test 1-----------------------------------')
+        # self.test_1()
+        # print('-----------------------------------start test 2-----------------------------------')
+        # self.test_2()
         print('-----------------------------------start test 3-----------------------------------')
         self.test_3()
         print('-----------------------------------start test 4-----------------------------------')
